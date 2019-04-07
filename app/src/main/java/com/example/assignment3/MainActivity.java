@@ -1,5 +1,9 @@
 package com.example.assignment3;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.animation.TypeEvaluator;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
@@ -11,31 +15,29 @@ import android.hardware.SensorManager;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
-
-import org.w3c.dom.Text;
-
-import java.util.concurrent.TimeUnit;
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
-    private TextView accelration;
-    private TextView max;
-    private TextView height;
-    private TextView score;
-    private TextView text;
+    private TextView acc,max, height, result, t;
     private Sensor sensor;
     private SensorManager sensorManager;
     private float x,y,z,accel, maxAccel;
     private float eGravity = SensorManager.GRAVITY_EARTH;
     private float MIN_ACC = 20;
+    ObjectAnimator objectAnimator;
+    ImageView imageView;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+         imageView = findViewById(R.id.ball);
+
 
 
         // Create sensor manager
@@ -47,37 +49,34 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
 
 
-        accelration = findViewById(R.id.accelration);
-        max = findViewById(R.id.max);
-        height = findViewById(R.id.height);
-        score = findViewById(R.id.score);
+        acc = findViewById(R.id.txt_acc);
+        max = findViewById(R.id.txt_max);
+        height = findViewById(R.id.txtHeight);
+        result = findViewById(R.id.txt_result);
         max.setVisibility(View.INVISIBLE);
-        score.setVisibility(View.INVISIBLE);
-        text = findViewById(R.id.text);
-        // t.setVisibility(View.INVISIBLE);
+        result.setVisibility(View.INVISIBLE);
+        t = findViewById(R.id.txt_t);
+       // t.setVisibility(View.INVISIBLE);
 
 
 
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onSensorChanged(SensorEvent event) {
         x = event.values[0];
         y = event.values[1];
         z = event.values[2];
         accel = (float)(Math.sqrt(x*x + y*y + z*z) - eGravity);
-        accelration.setText(Float.toString(accel));
-        accelration.setVisibility(View.INVISIBLE);
+        acc.setText(Float.toString(accel));
+        acc.setVisibility(View.INVISIBLE);
         if (accel > maxAccel && accel > 0){
             maxAccel = accel;
         }
         max.setText(Float.toString(maxAccel));
         if (accel > MIN_ACC){
-            try {
-                ThrowEvent(maxAccel);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            ThrowEvent(maxAccel);
         }
     }
 
@@ -86,29 +85,30 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
-    public void ThrowEvent(float acc) throws InterruptedException {
+    public void ThrowEvent(float acc) {
         height.setText("");
-        Float initialSpeed = acc;
-        final Float maxHeight = ((initialSpeed * 2) / (eGravity * 2));
+        float initialSpeed = acc;
+        final float maxHeight = ((initialSpeed * 2) / (eGravity * 2));
 
-        text.setVisibility(View.VISIBLE);
+             t.setVisibility(View.VISIBLE);
 
-        ValueAnimator animator = new ValueAnimator();
-        animator.setObjectValues(0, Math.round(maxHeight));
-        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            public void onAnimationUpdate(ValueAnimator animation) {
-                text.setText(String.valueOf(animation.getAnimatedValue()));
-            }
-        });
-        animator.setEvaluator(new TypeEvaluator<Integer>() {
-            public Integer evaluate(float fraction, Integer startValue, Integer endValue) {
-                return Math.round(startValue + (endValue - startValue) * fraction);
-            }
-        });
-        animator.setDuration(500);
-        animator.start();
+                ValueAnimator animator = new ValueAnimator();
+                animator.setObjectValues(0, Math.round(maxHeight));
+                animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        t.setText(String.valueOf(animation.getAnimatedValue()));
+                    }
+                });
+                animator.setEvaluator(new TypeEvaluator<Integer>() {
+                    public Integer evaluate(float fraction, Integer startValue, Integer endValue) {
+                        return Math.round(startValue + (endValue - startValue) * fraction);
+                    }
+                });
+                animator.setDuration(500);
+                animator.start();
 
-        Thread t2 = new Thread() {
+        final Thread tid2 = new Thread() {
+            @SuppressLint("SetTextI18n")
             public void run ()
             {
 
@@ -118,13 +118,39 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     e.printStackTrace();
                 }
                 height.setText(Float.toString(maxHeight) + " Meters");
-                //    MediaPlayer ding = MediaPlayer.create(this, R.raw.bell);
-                //      ding.start();
                 maxAccel = 0;
                 accel = 0;
 
             }
         };
-        t2.start();
+        playAnimation(maxHeight, 500);
+        tid2.start();
+    }
+
+    public void playAnimation(float height, int dur) {
+        objectAnimator = ObjectAnimator.ofFloat(imageView, "y", height);
+        objectAnimator.setDuration(dur);
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playSequentially(objectAnimator);
+        animatorSet.start();
+       // animatorSet.pause();
+        animatorSet.addListener(new AnimatorListenerAdapter(){
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                super.onAnimationCancel(animation);
+            }
+
+            @Override
+            public void onAnimationPause(Animator animation) {
+                super.onAnimationPause(animation);
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+
+                animation.removeListener(this);
+                objectAnimator.reverse();
+            }
+        });
     }
 }

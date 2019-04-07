@@ -1,4 +1,4 @@
-package com.example.assignment3;
+package com.example.throwaball;
 
 import org.junit.Test;
 
